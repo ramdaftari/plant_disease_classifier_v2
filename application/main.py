@@ -17,7 +17,7 @@ def load_model_prediction():
 	img_size = (224, 224)
 	channels = 3
 	img_shape = (224, 224, channels)
-	class_count = 38 # set this to number of classes from your train_gen.class_indices
+	class_count = 38
 
 	# Load the EfficientNetB3 base model without the top layers, with imagenet weights
 	base_model = tf.keras.applications.EfficientNetB3(
@@ -43,7 +43,7 @@ def load_model_prediction():
 				loss='categorical_crossentropy',
 				metrics=['accuracy'])
 
-	# Load weights from your saved file
+	# Load weights from saved file
 	model.load_weights('weights.h5')
 
 	return model
@@ -64,7 +64,7 @@ class Homescreen(MDScreen):
 
 
 
-	def captureyouface(self):
+	def captureimage(self):
 		timenow = time.strftime("%Y%m%d_%H%M%S")
 
 		self.mycamera.export_to_png("myimage_{}.png".format(timenow))
