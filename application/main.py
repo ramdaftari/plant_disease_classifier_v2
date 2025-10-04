@@ -4,12 +4,11 @@ from kivymd.uix.screen import MDScreen
 from kivy.core.window import Window
 from kivy.uix.image import Image
 from kivy.clock import Clock
-import os
-import cv2
-from kivymd.uix.list import MDList,OneLineAvatarListItem,ImageLeftWidget
 import time
 import tensorflow as tf
 from tensorflow.keras import Sequential
+from tensorflow.keras.preprocessing import image
+import numpy as np
 from tensorflow.keras.layers import BatchNormalization, Dense, Dropout
 from tensorflow.keras.optimizers import Adamax
 from tensorflow.keras import regularizers
@@ -75,23 +74,29 @@ class MyApp(MDApp):
 		self.bt_module = AndroidBluetoothClass()
 		self.bt_module.getAndroidBluetoothSocket('PDC') 
 		Clock.schedule_interval(self.listen_bluetooth, 0.1)
-		self.x = 0
+		self.x = '0'
 		return Homescreen()
 	
 	def listen_bluetooth(self, dt):
-		# Replace next line with actual code for reading/receiving
-		received_data = self.receive_bluetooth_data()  # Should return latest data
+		received_data = self.bt_module.BluetoothReceive()  # Should return latest data
 		if received_data is not None:
 			self.x = received_data
-		if self.x:
+		if self.x=='1':
 			self.capture_image()
 	
 	def capture_image(self):
+		screen = self.root
 		timenow = time.strftime("%Y%m%d_%H%M%S")
-		self.mycamera.export_to_png("image_{}.png".format(timenow))
-		self.myimage.source = "image_{}.png".format(timenow)
-		self.model.predict("image_{}.png".format(timenow))
-		self.x=0
+		filename = f"image_{timenow}.png"
+		screen.mycamera.export_to_png(filename)
+		img = image.load_img(filename, target_size=(224, 224))
+		img_array = image.img_to_array(img)
+		img_array = np.expand_dims(img_array, axis=0) 
+		img_array /= 255.0 
+
+		prediction = self.model.predict(img_array)
+		print("Prediction:", prediction)
+		self.x = '0'
 
 if __name__ == "__main__":
 
