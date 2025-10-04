@@ -73,7 +73,7 @@ class MyApp(MDApp):
 
 		self.model = load_model_prediction()
 		self.bt_module = AndroidBluetoothClass()
-		self.bt_module.getAndroidBluetoothSocket('HC-05') 
+		self.bt_module.getAndroidBluetoothSocket('PDC') 
 		Clock.schedule_interval(self.listen_bluetooth, 0.1)
 		self.x = 0
 		return Homescreen()
