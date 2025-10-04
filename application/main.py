@@ -3,6 +3,7 @@ from kivy.lang import Builder
 from kivymd.uix.screen import MDScreen
 from kivy.core.window import Window
 from kivy.uix.image import Image
+from kivy.clock import Clock
 import os
 import cv2
 from kivymd.uix.list import MDList,OneLineAvatarListItem,ImageLeftWidget
@@ -12,6 +13,7 @@ from tensorflow.keras import Sequential
 from tensorflow.keras.layers import BatchNormalization, Dense, Dropout
 from tensorflow.keras.optimizers import Adamax
 from tensorflow.keras import regularizers
+from bluetooth_tools import AndroidBluetoothClass
 
 def load_model_prediction():
 	img_size = (224, 224)
@@ -60,34 +62,37 @@ class Homescreen(MDScreen):
 		self.mycamera = self.ids.camera
 		self.myimage = Image()
 		self.resultbox = self.ids.resultbox
-		self.mybox = self.ids.mybox
+		self.box = self.ids.box
 
 
-
-	def captureimage(self):
-		timenow = time.strftime("%Y%m%d_%H%M%S")
-
-		self.mycamera.export_to_png("myimage_{}.png".format(timenow))
-		self.myimage.source = "myimage_{}.png".format(timenow)
-		self.resultbox.add_widget(
-			OneLineAvatarListItem(
-				ImageLeftWidget(
-					source="myimage_{}.png".format(timenow),
-					size_hint_x=0.3,
-					size_hint_y=1,
-
-					size=(300,300)
-
-					),
-				text=self.ids.name.text
-				)
-
-			)
+	
 
 
 class MyApp(MDApp):
 	def build(self):
+
+		self.model = load_model_prediction()
+		self.bt_module = AndroidBluetoothClass()
+		self.bt_module.getAndroidBluetoothSocket('HC-05') 
+		Clock.schedule_interval(self.listen_bluetooth, 0.1)
+		self.x = 0
 		return Homescreen()
+	
+	def listen_bluetooth(self, dt):
+		# Replace next line with actual code for reading/receiving
+		received_data = self.receive_bluetooth_data()  # Should return latest data
+		if received_data is not None:
+			self.x = received_data
+		if self.x:
+			self.capture_image()
+	
+	def capture_image(self):
+		timenow = time.strftime("%Y%m%d_%H%M%S")
+		self.mycamera.export_to_png("image_{}.png".format(timenow))
+		self.myimage.source = "image_{}.png".format(timenow)
+		self.model.predict("image_{}.png".format(timenow))
+		self.x=0
 
 if __name__ == "__main__":
+
 	MyApp().run()
