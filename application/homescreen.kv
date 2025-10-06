@@ -13,9 +13,14 @@
                 id:camera
                 resolution:(640,480)
                 play:True
+            MDLabel:
+                id: x_label
+                text: "nothing yet"
+                size_hint_y: None
+                height: self.texture_size[1]
             MDRaisedButton:
                 text:"capture"
-                on_release:root.captureimage()
+                on_release:app.capture_image()
             MDList:
                 id:resultbox
            

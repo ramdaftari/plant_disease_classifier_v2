@@ -1,3 +1,6 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
 from kivymd.app import MDApp
 from kivy.lang import Builder
 from kivymd.uix.screen import MDScreen
@@ -13,6 +16,17 @@ from tensorflow.keras.layers import BatchNormalization, Dense, Dropout
 from tensorflow.keras.optimizers import Adamax
 from tensorflow.keras import regularizers
 from bluetooth_tools import AndroidBluetoothClass
+
+
+global graph
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
 
 def load_model_prediction():
 	img_size = (224, 224)
@@ -49,7 +63,7 @@ def load_model_prediction():
 
 	return model
 
-
+print(load_model_prediction().predict(np.random.rand(1, 224, 224, 3).astype(np.float32)))
 
 Window.size = (350,900)
 
@@ -62,8 +76,7 @@ class Homescreen(MDScreen):
 		self.myimage = Image()
 		self.resultbox = self.ids.resultbox
 		self.box = self.ids.box
-
-
+		
 	
 
 
@@ -71,17 +84,18 @@ class MyApp(MDApp):
 	def build(self):
 
 		self.model = load_model_prediction()
-		self.bt_module = AndroidBluetoothClass()
-		self.bt_module.getAndroidBluetoothSocket('PDC') 
+		#self.bt_module = AndroidBluetoothClass()
+		#self.bt_module.getAndroidBluetoothSocket('PDC') 
 		Clock.schedule_interval(self.listen_bluetooth, 0.1)
 		self.x = '0'
 		return Homescreen()
 	
 	def listen_bluetooth(self, dt):
-		received_data = self.bt_module.BluetoothReceive()  # Should return latest data
+		received_data = '1' #self.bt_module.BluetoothReceive()  # Should return latest data
 		if received_data is not None:
-			self.x = received_data
-		if self.x=='1':
+			self.x = received_data.strip()
+			self.root.ids.x_label.text = f"x value: {self.x}"
+		if self.x=='2':
 			self.capture_image()
 	
 	def capture_image(self):
@@ -89,14 +103,14 @@ class MyApp(MDApp):
 		timenow = time.strftime("%Y%m%d_%H%M%S")
 		filename = f"image_{timenow}.png"
 		screen.mycamera.export_to_png(filename)
-		img = image.load_img(filename, target_size=(224, 224))
+		img = image.load_img(filename, target_size=(224, 224), color_mode='rgb')
 		img_array = image.img_to_array(img)
-		img_array = np.expand_dims(img_array, axis=0) 
-		img_array /= 255.0 
-
-		prediction = self.model.predict(img_array)
-		print("Prediction:", prediction)
-		self.x = '0'
+		img_array = img_array.astype(np.float32)
+		img_array = np.expand_dims(img_array, axis=0)
+		dummy_input = np.random.rand(1, 224, 224, 3).astype(np.float32)
+		prediction = self.model.predict(dummy_input)
+		# print("Prediction:", prediction)
+		# self.x = '0'
 
 if __name__ == "__main__":
 

@@ -6,7 +6,7 @@ SoftwareSerial B(0,1);
 int x = 0;
 
 void setup() {
-  B.begin(9600);
+  B.begin(38400);
 }
 
 void loop() {
