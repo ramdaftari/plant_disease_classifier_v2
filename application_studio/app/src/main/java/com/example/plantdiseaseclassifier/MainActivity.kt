@@ -46,9 +46,13 @@ class MainActivity : ComponentActivity() {
     }
 
     @SuppressLint("SetTextI18n")
-    private fun make_prediction(bitmap: Bitmap){
+    private fun make_prediction(imageUri: Uri) {
         try {
-            val model = ModelPdcs.newInstance(this)
+            val bitmap = loadScaledBitmapFromUri(imageUri, 224, 224)
+            if (bitmap == null) {
+                Toast.makeText(this, "Failed to load image for prediction", Toast.LENGTH_SHORT).show()
+                return
+            }
 
             val scaledBitmap = bitmap.scale(224, 224)
 
@@ -66,25 +70,26 @@ class MainActivity : ComponentActivity() {
             val inputFeature0 = TensorBuffer.createFixedSize(intArrayOf(1, 224, 224, 3), DataType.FLOAT32)
             inputFeature0.loadArray(floatValues)
 
+            val model = ModelPdcs.newInstance(this)
             val outputs = model.process(inputFeature0)
             val outputFeature0 = outputs.outputFeature0AsTensorBuffer
             val probabilities = outputFeature0.floatArray
 
             val maxIndex = probabilities.indices.maxByOrNull { probabilities[it] } ?: -1
             val confidence = if (maxIndex >= 0) probabilities[maxIndex] else 0f
-            if(confidence>0.4){
+            if (confidence > 0.4) {
                 viewBinding.classified.text = "Class: $maxIndex"
                 viewBinding.confidence.text = "Confidence: $confidence"
             } else {
-                Toast.makeText(this, "Prediction failed: Confidence below threshold", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Prediction confidence below threshold", Toast.LENGTH_LONG).show()
             }
-
             model.close()
         } catch (e: Exception) {
             Log.e(TAG, "Model prediction failed", e)
             Toast.makeText(this, "Prediction failed: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
+
     private fun loadScaledBitmapFromUri(uri: Uri, reqWidth: Int, reqHeight: Int): Bitmap? {
         return try {
             val options = BitmapFactory.Options().apply {
@@ -148,13 +153,7 @@ class MainActivity : ComponentActivity() {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                     val savedUri = outputFileResults.savedUri
                     if (savedUri != null) {
-                        val bitmap = loadScaledBitmapFromUri(savedUri, 224, 224)
-                        if (bitmap != null) {
-                            val exactScaledBitmap = bitmap.scale(224, 224)
-                            make_prediction(exactScaledBitmap)
-                        } else {
-                            Toast.makeText(baseContext, "Failed to load image for prediction", Toast.LENGTH_SHORT).show()
-                        }
+                        make_prediction(savedUri)
                     }
                 }
             }
