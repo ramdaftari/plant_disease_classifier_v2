@@ -10,7 +10,7 @@
         android:layout_height="wrap_content"
         android:layout_centerInParent="true"
         android:id="@+id/picture_button"
-        android:text="Take Picture"
+        android:text="Predict"
         android:textAllCaps="false"
         android:layout_above="@id/bt_button"
         android:textSize="21sp"

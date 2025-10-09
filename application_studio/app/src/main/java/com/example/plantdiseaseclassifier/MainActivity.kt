@@ -14,10 +14,8 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
-import androidx.compose.ui.text.intl.Locale
 import androidx.core.content.ContextCompat
 import com.example.plantdiseaseclassifier.databinding.ActivityMainBinding
-import com.example.plantdiseaseclassifier.ui.theme.PlantDiseaseClassifierTheme
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewBinding: ActivityMainBinding
@@ -82,7 +80,7 @@ class MainActivity : ComponentActivity() {
         permissions ->
         var permissionGranted = true
         permissions.entries.forEach{
-            if(it.key in REQUIRED_PERMISSIONS && it.value == false)
+            if(it.key in REQUIRED_PERMISSIONS && !it.value)
                 permissionGranted = false
         }
         if(!permissionGranted){
@@ -92,8 +90,7 @@ class MainActivity : ComponentActivity() {
         }
     }
     companion object {
-        private const val TAG = "CameraXApp"
-        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
+        private const val TAG = "PDC"
         private val REQUIRED_PERMISSIONS =
             mutableListOf(
                 android.Manifest.permission.CAMERA
