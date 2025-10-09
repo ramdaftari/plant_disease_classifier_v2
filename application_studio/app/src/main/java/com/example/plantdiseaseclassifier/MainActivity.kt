@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @SuppressLint("SetTextI18n")
-    private fun make_prediction(imageUri: Uri) {
+    private fun makePrediction(imageUri: Uri) {
         try {
             val bitmap = loadScaledBitmapFromUri(imageUri, 224, 224)
             if (bitmap == null) {
@@ -153,7 +153,7 @@ class MainActivity : ComponentActivity() {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                     val savedUri = outputFileResults.savedUri
                     if (savedUri != null) {
-                        make_prediction(savedUri)
+                        makePrediction(savedUri)
                     }
                 }
             }
