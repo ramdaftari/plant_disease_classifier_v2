@@ -1,11 +1,15 @@
 package com.example.plantdiseaseclassifier
 
+import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -16,6 +20,10 @@ import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import com.example.plantdiseaseclassifier.databinding.ActivityMainBinding
+import com.example.plantdiseaseclassifier.ml.ModelPdcs
+import org.tensorflow.lite.DataType
+import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
+import androidx.core.graphics.scale
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewBinding: ActivityMainBinding
@@ -35,6 +43,82 @@ class MainActivity : ComponentActivity() {
             takePhoto()
         }
 
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun make_prediction(bitmap: Bitmap){
+        try {
+            val model = ModelPdcs.newInstance(this)
+
+            val scaledBitmap = bitmap.scale(224, 224)
+
+            val pixels = IntArray(224 * 224)
+            scaledBitmap.getPixels(pixels, 0, 224, 0, 0, 224, 224)
+
+            val floatValues = FloatArray(224 * 224 * 3)
+            for (i in pixels.indices) {
+                val pixel = pixels[i]
+                floatValues[i * 3] = (pixel shr 16 and 0xFF).toFloat()
+                floatValues[i * 3 + 1] = (pixel shr 8 and 0xFF).toFloat()
+                floatValues[i * 3 + 2] = (pixel and 0xFF).toFloat()
+            }
+
+            val inputFeature0 = TensorBuffer.createFixedSize(intArrayOf(1, 224, 224, 3), DataType.FLOAT32)
+            inputFeature0.loadArray(floatValues)
+
+            val outputs = model.process(inputFeature0)
+            val outputFeature0 = outputs.outputFeature0AsTensorBuffer
+            val probabilities = outputFeature0.floatArray
+
+            val maxIndex = probabilities.indices.maxByOrNull { probabilities[it] } ?: -1
+            val confidence = if (maxIndex >= 0) probabilities[maxIndex] else 0f
+            if(confidence>0.4){
+                viewBinding.classified.text = "Class: $maxIndex"
+                viewBinding.confidence.text = "Confidence: $confidence"
+            } else {
+                Toast.makeText(this, "Prediction failed: Confidence below threshold", Toast.LENGTH_LONG).show()
+            }
+
+            model.close()
+        } catch (e: Exception) {
+            Log.e(TAG, "Model prediction failed", e)
+            Toast.makeText(this, "Prediction failed: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+    private fun loadScaledBitmapFromUri(uri: Uri, reqWidth: Int, reqHeight: Int): Bitmap? {
+        return try {
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            contentResolver.openInputStream(uri).use { stream ->
+                BitmapFactory.decodeStream(stream, null, options)
+            }
+
+            options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight)
+
+            options.inJustDecodeBounds = false
+            contentResolver.openInputStream(uri).use { stream ->
+                BitmapFactory.decodeStream(stream, null, options)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+        val (height: Int, width: Int) = options.outHeight to options.outWidth
+        var inSampleSize = 1
+
+        if (height > reqHeight || width > reqWidth) {
+            val halfHeight: Int = height / 2
+            val halfWidth: Int = width / 2
+
+            while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize
     }
 
     private fun takePhoto(){
@@ -62,12 +146,20 @@ class MainActivity : ComponentActivity() {
                 }
 
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    val msg = "Photo capture succeeded: ${outputFileResults.savedUri}"
-                    Toast.makeText(baseContext,msg,Toast.LENGTH_SHORT).show()
-                    Log.d(TAG, msg)
+                    val savedUri = outputFileResults.savedUri
+                    if (savedUri != null) {
+                        val bitmap = loadScaledBitmapFromUri(savedUri, 224, 224)
+                        if (bitmap != null) {
+                            val exactScaledBitmap = bitmap.scale(224, 224)
+                            make_prediction(exactScaledBitmap)
+                        } else {
+                            Toast.makeText(baseContext, "Failed to load image for prediction", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             }
         )
+
     }
 
     private fun startCamera() {
@@ -94,13 +186,14 @@ class MainActivity : ComponentActivity() {
         private val REQUIRED_PERMISSIONS =
             mutableListOf(
                 android.Manifest.permission.CAMERA
-            ).apply{
-                if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.P){
+            ).apply {
+                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
                     add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 }
             }.toTypedArray()
-        fun hasPermissions(context: Context) = REQUIRED_PERMISSIONS.all{
-            ContextCompat.checkSelfPermission(context,it) == PackageManager.PERMISSION_GRANTED
+
+        fun hasPermissions(context: Context) = REQUIRED_PERMISSIONS.all {
+            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
         }
     }
 }
