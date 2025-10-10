@@ -12,21 +12,11 @@
         android:id="@+id/picture_button"
         android:text="Predict"
         android:textAllCaps="false"
-        android:layout_above="@id/bt_button"
+        android:layout_above="@id/bluetooth"
         android:textSize="21sp"
         android:textStyle="bold"
         />
-    <Button
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:id="@+id/bt_button"
-        android:text="Connect Bluetooth"
-        android:textAllCaps="false"
-        android:layout_alignParentBottom="true"
-        android:textSize="21sp"
-        android:textStyle="bold"
-        />
+
     <androidx.camera.view.PreviewView
         android:layout_width="370sp"
         android:layout_height="370sp"
@@ -66,5 +56,15 @@
         android:layout_marginEnd="172dp"
         android:layout_marginBottom="217dp"
         android:text="Accuracy: " />
+
+    <Switch
+        android:id="@+id/bluetooth"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginEnd="151dp"
+        android:layout_marginBottom="57dp"
+        android:text="Bluetooth" />
 
 </RelativeLayout>
