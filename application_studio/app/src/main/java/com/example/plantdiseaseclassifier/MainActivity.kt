@@ -24,10 +24,16 @@ import com.example.plantdiseaseclassifier.ml.ModelPdcs
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
 import androidx.core.graphics.scale
+import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
+
+data class ClassEntry(val col1: String, val col2: String)
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewBinding: ActivityMainBinding
     private lateinit var cameraController: LifecycleCameraController
+
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,14 +45,30 @@ class MainActivity : ComponentActivity() {
         } else {
             startCamera()
         }
+        val classData = readCSVFile()
         viewBinding.pictureButton.setOnClickListener {
-            takePhoto()
+            takePhoto(classData)
         }
 
     }
 
+    private fun readCSVFile(): List<ClassEntry> {
+        val inputStream = assets.open("classes.csv")
+        val reader = csvReader()
+        val classList = mutableListOf<ClassEntry>()
+
+        reader.open(inputStream) {
+            readAllAsSequence().forEach { row ->
+                if (row.size >= 2) {
+                    classList.add(ClassEntry(row[0], row[1]))
+                }
+            }
+        }
+        return classList
+    }
+
     @SuppressLint("SetTextI18n")
-    private fun makePrediction(imageUri: Uri) {
+    private fun makePrediction(imageUri: Uri, classData: List<ClassEntry>) {
         try {
             val bitmap = loadScaledBitmapFromUri(imageUri, 224, 224)
             if (bitmap == null) {
@@ -77,8 +99,9 @@ class MainActivity : ComponentActivity() {
 
             val maxIndex = probabilities.indices.maxByOrNull { probabilities[it] } ?: -1
             val confidence = if (maxIndex >= 0) probabilities[maxIndex] else 0f
-            if (confidence > 0.4) {
-                viewBinding.classified.text = "Class: $maxIndex"
+            if (confidence > 0.65) {
+                viewBinding.classified.text = "Plant Species: " + classData[maxIndex].col1
+                viewBinding.disease.text = "Disease: " + classData[maxIndex].col2
                 viewBinding.confidence.text = "Confidence: $confidence"
             } else {
                 Toast.makeText(this, "Prediction confidence below threshold", Toast.LENGTH_LONG).show()
@@ -126,7 +149,7 @@ class MainActivity : ComponentActivity() {
         return inSampleSize
     }
 
-    private fun takePhoto(){
+    private fun takePhoto(classData: List<ClassEntry>){
         val name = "PlantDisease" + System.currentTimeMillis()
         val contentValues = ContentValues().apply{
             put(MediaStore.MediaColumns.DISPLAY_NAME,name)
@@ -153,7 +176,7 @@ class MainActivity : ComponentActivity() {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                     val savedUri = outputFileResults.savedUri
                     if (savedUri != null) {
-                        makePrediction(savedUri)
+                        makePrediction(savedUri, classData)
                     }
                 }
             }
@@ -168,7 +191,7 @@ class MainActivity : ComponentActivity() {
         previewView.controller = cameraController
     }
     private val activityResultLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){
-        permissions ->
+            permissions ->
         var permissionGranted = true
         permissions.entries.forEach{
             if(it.key in REQUIRED_PERMISSIONS && !it.value)
