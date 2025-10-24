@@ -28,11 +28,12 @@ import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
-import android.app.Activity
 import android.Manifest
 import android.bluetooth.BluetoothDevice
 import java.util.UUID
 import android.bluetooth.BluetoothSocket
+import androidx.annotation.RequiresApi
+import androidx.annotation.RequiresPermission
 import java.io.IOException
 
 data class ClassEntry(val col1: String, val col2: String)
@@ -57,6 +58,7 @@ class MainActivity : ComponentActivity() {
 
 
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
@@ -74,7 +76,7 @@ class MainActivity : ComponentActivity() {
 
         // getSystemService is called a context object to provide access to the Bluetooth service
         val bluetoothManager : BluetoothManager = getSystemService(BluetoothManager::class.java)
-        bluetoothAdapter = bluetoothManager.getAdapter()
+        bluetoothAdapter = bluetoothManager.adapter
         if (bluetoothAdapter == null){
             Log.e("BluetoothTest", "Bluetooth connection failed")
             Toast.makeText(this, "Bluetooth connection failed", Toast.LENGTH_SHORT).show()
@@ -92,8 +94,10 @@ class MainActivity : ComponentActivity() {
                 val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                 startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
             }
+            else{
+                connectToHC05()
+            }
         }
-        connectToHC05()
     }
 
     private fun getPairedHC05Device(): BluetoothDevice? {
@@ -111,6 +115,7 @@ class MainActivity : ComponentActivity() {
 
     private val MY_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun connectToHC05() {
         Toast.makeText(this, "Connection Process Started !", Toast.LENGTH_SHORT).show()
         Log.d(TAG, "Connection Process Started !")
@@ -130,43 +135,40 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private inner class ConnectThread(private val device: BluetoothDevice) : Thread() {
+    private inner class ConnectThread(device: BluetoothDevice) : Thread() {
 
-        private val mmSocket: BluetoothSocket by lazy(LazyThreadSafetyMode.NONE) {
-            Log.d(TAG, "ConnectThread: started.")
+        private val mmSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
             device.createRfcommSocketToServiceRecord(MY_UUID)
-            Log.d(TAG, "success")
         }
 
+        @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
         public override fun run() {
-            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-                bluetoothAdapter?.cancelDiscovery()
-            }
+            // Cancel discovery because it otherwise slows down the connection.
+            bluetoothAdapter?.cancelDiscovery()
 
-            mmSocket.let { socket : BluetoothSocket ->
+            mmSocket?.let { socket ->
                 // Connect to the remote device through the socket. This call blocks
                 // until it succeeds or throws an exception.
                 socket.connect()
-
+                Toast.makeText(this@MainActivity, "connected", Toast.LENGTH_SHORT).show()
                 // The connection attempt succeeded. Perform work associated with
                 // the connection in a separate thread.
-                manageMyConnectedSocket(socket)
+                // manageMyConnectedSocket(socket)
             }
         }
 
-        // Closes the client socket and causes the thread to finish.
         fun cancel() {
             try {
-                mmSocket.close()
+                mmSocket?.close()
             } catch (e: IOException) {
                 Log.e(TAG, "Could not close the client socket", e)
             }
         }
     }
 
+
     private fun manageMyConnectedSocket(socket: BluetoothSocket){
-        // val connectedThread = ConnectedThread(socket)
-        // connectedThread.start()
+        Log.d(TAG, "Ready to transmit data")
     }
 
 
@@ -313,6 +315,7 @@ class MainActivity : ComponentActivity() {
         cameraController.bindToLifecycle(this)
         previewView.controller = cameraController
     }
+    @RequiresApi(Build.VERSION_CODES.S)
     private val activityResultLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){
             permissions ->
         var permissionGranted = true
@@ -328,15 +331,19 @@ class MainActivity : ComponentActivity() {
     }
     companion object {
         private const val TAG = "PDC"
+        @RequiresApi(Build.VERSION_CODES.S)
         private val REQUIRED_PERMISSIONS =
             mutableListOf(
-                android.Manifest.permission.CAMERA
+                android.Manifest.permission.CAMERA,
+                android.Manifest.permission.BLUETOOTH_SCAN,
+                android.Manifest.permission.BLUETOOTH_CONNECT
             ).apply {
                 if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
                     add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 }
             }.toTypedArray()
 
+        @RequiresApi(Build.VERSION_CODES.S)
         fun hasPermissions(context: Context) = REQUIRED_PERMISSIONS.all {
             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
         }
