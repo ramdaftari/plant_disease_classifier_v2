@@ -35,6 +35,10 @@ import android.bluetooth.BluetoothSocket
 import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
 import java.io.IOException
+import android.os.Handler
+import android.os.Looper
+import java.io.InputStream
+
 
 data class ClassEntry(val col1: String, val col2: String)
 
@@ -44,6 +48,7 @@ class MainActivity : ComponentActivity() {
     private val REQUEST_ENABLE_BT = 1
 
     private var bluetoothAdapter: BluetoothAdapter? = null
+    private val handler = Handler(Looper.getMainLooper())
 
 //    private val bluetoothEnableLauncher = registerForActivityResult(
 //        ActivityResultContracts.StartActivityForResult()
@@ -147,13 +152,13 @@ class MainActivity : ComponentActivity() {
             bluetoothAdapter?.cancelDiscovery()
 
             mmSocket?.let { socket ->
-                // Connect to the remote device through the socket. This call blocks
-                // until it succeeds or throws an exception.
                 socket.connect()
-                Toast.makeText(this@MainActivity, "connected", Toast.LENGTH_SHORT).show()
-                // The connection attempt succeeded. Perform work associated with
-                // the connection in a separate thread.
-                // manageMyConnectedSocket(socket)
+                handler.post {
+                    Toast.makeText(this@MainActivity, "Connected to PDC!", Toast.LENGTH_SHORT).show()
+                }
+                // Background thread cannot talk to UI, only main thread can, this is why it was crashing
+                // Toast.makeText(this@MainActivity, "connected", Toast.LENGTH_SHORT).show()
+                manageMyConnectedSocket(socket)
             }
         }
 
@@ -168,7 +173,28 @@ class MainActivity : ComponentActivity() {
 
 
     private fun manageMyConnectedSocket(socket: BluetoothSocket){
-        Log.d(TAG, "Ready to transmit data")
+        Log.d(TAG, "Ready to hear from Arduino")
+        val inputStream = socket.inputStream
+        val buffer = ByteArray(1024)
+        while (true) {
+            val numBytes = try {
+                // As soon as data arrives in the buffer it will be read, buffer does not need to be filled
+                inputStream.read(buffer)
+            } catch (e: IOException) {
+                break
+            }
+
+            val receivedData = String(buffer, 0, numBytes).trim()
+
+            if (receivedData == "1") {
+                handler.post {
+                    Toast.makeText(this@MainActivity, "Taking Photo!", Toast.LENGTH_SHORT).show()
+                    // I've kept this the way it was in on-create
+                    val classData = readCSVFile()
+                    takePhoto(classData)
+                }
+            }
+        }
     }
 
 
