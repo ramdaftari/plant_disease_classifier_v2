@@ -16,7 +16,7 @@ int in3 = 5;
 int in4 = 4;
 
 void setup() {
-  B.begin(38400);
+  B.begin(9600);
 
   pinMode(enA, OUTPUT);
   pinMode(in1, OUTPUT);

@@ -185,8 +185,8 @@ class MainActivity : ComponentActivity() {
             }
 
             val receivedData = String(buffer, 0, numBytes).trim()
-
-            if (receivedData == "1") {
+            //Toast.makeText(this@MainActivity, receivedData, Toast.LENGTH_SHORT).show()
+            if (receivedData == "1;") {
                 handler.post {
                     Toast.makeText(this@MainActivity, "Taking Photo!", Toast.LENGTH_SHORT).show()
                     // I've kept this the way it was in on-create
