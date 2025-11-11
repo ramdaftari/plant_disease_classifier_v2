@@ -1,6 +1,7 @@
 package com.example.plantdiseaseclassifier
 
 import android.annotation.SuppressLint
+import android.graphics.Color
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
@@ -12,6 +13,7 @@ import android.provider.MediaStore
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import java.util.Calendar
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.ImageCapture
@@ -37,6 +39,7 @@ import androidx.annotation.RequiresPermission
 import java.io.IOException
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import java.io.InputStream
 
 
@@ -218,7 +221,7 @@ class MainActivity : ComponentActivity() {
 
 
 
-    @SuppressLint("SetTextI18n")
+    @SuppressLint("SetTextI18n", "DefaultLocale")
     private fun makePrediction(imageUri: Uri, classData: List<ClassEntry>) {
         try {
             val bitmap = loadScaledBitmapFromUri(imageUri, 224, 224)
@@ -247,20 +250,52 @@ class MainActivity : ComponentActivity() {
             val outputs = model.process(inputFeature0)
             val outputFeature0 = outputs.outputFeature0AsTensorBuffer
             val probabilities = outputFeature0.floatArray
-
+            val calendar = Calendar.getInstance()
+            val hour = calendar.get(Calendar.HOUR_OF_DAY)
+            val minute = calendar.get(Calendar.MINUTE)
+            val second = calendar.get(Calendar.SECOND)
+            val currentTime = String.format("%02d:%02d:%02d", hour, minute, second)
+            var entry = ""
             val maxIndex = probabilities.indices.maxByOrNull { probabilities[it] } ?: -1
             val confidence = if (maxIndex >= 0) probabilities[maxIndex] else 0f
             if (confidence > 0.65) {
-                viewBinding.classified.text = "Plant Species: " + classData[maxIndex].col1
-                viewBinding.disease.text = "Disease: " + classData[maxIndex].col2
+
+
                 viewBinding.confidence.text = "Confidence: $confidence"
+                if(classData[maxIndex].col2 == "Healthy") {
+                    entry = "Health Status: Healthy"
+                    viewBinding.classified.text = entry
+                    viewBinding.classified.setBackgroundColor(Color.GREEN)
+                    viewBinding.scrollableText?.append("[$currentTime] $entry\n")
+                    viewBinding.logger?.post {
+                        viewBinding.logger?.fullScroll(View.FOCUS_DOWN)
+                    }
+                }
+                else{
+                    entry = "Health Status: Diseased"
+                    viewBinding.classified.text = entry
+                    viewBinding.classified.setBackgroundColor(Color.RED)
+                    viewBinding.scrollableText?.append("[$currentTime] $entry\n")
+                    viewBinding.logger?.post {
+                        viewBinding.logger?.fullScroll(View.FOCUS_DOWN)
+                    }
+
+                }
+
             } else {
-                Toast.makeText(this, "Prediction confidence below threshold", Toast.LENGTH_LONG).show()
+                entry = "Prediction confidence below threshold"
+                Toast.makeText(this, entry, Toast.LENGTH_LONG).show()
+                viewBinding.classified.setBackgroundColor(Color.WHITE)
+                viewBinding.scrollableText?.append("[$currentTime] $entry\n")
+                viewBinding.logger?.post {
+                    viewBinding.logger?.fullScroll(View.FOCUS_DOWN)
+                }
             }
             model.close()
         } catch (e: Exception) {
             Log.e(TAG, "Model prediction failed", e)
             Toast.makeText(this, "Prediction failed: ${e.message}", Toast.LENGTH_LONG).show()
+
         }
     }
 
